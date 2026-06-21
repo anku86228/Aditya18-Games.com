@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Highway Legends Pro</title>
+
+<style>
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial,sans-serif;
+}
+
+body{
+overflow:hidden;
+background:#111;
+}
+
+#game{
+width:100vw;
+height:100vh;
+background:#444;
+position:relative;
+overflow:hidden;
+}
+
+#road{
+width:100%;
+height:100%;
+background:#555;
+position:absolute;
+}
+
+.lane{
+position:absolute;
+top:0;
+bottom:0;
+width:4px;
+background:white;
+opacity:0.6;
+}
+
+#lane1{left:33.3%;}
+#lane2{left:66.6%;}
+
+#player{
+width:50px;
+height:90px;
+background:red;
+border-radius:10px;
+position:absolute;
+bottom:100px;
+left:50%;
+transform:translateX(-50%);
+}
+
+.enemy{
+width:50px;
+height:90px;
+background:yellow;
+border-radius:10px;
+position:absolute;
+}
+
+.coin{
+width:25px;
+height:25px;
+background:gold;
+border-radius:50%;
+position:absolute;
+}
+
+#hud{
+position:absolute;
+top:10px;
+left:10px;
+color:white;
+z-index:100;
+font-size:18px;
+}
+
+#fuelBar{
+width:150px;
+height:15px;
+background:#333;
+margin-top:5px;
+border-radius:10px;
+overflow:hidden;
+}
+
+#fuel{
+width:100%;
+height:100%;
+background:lime;
+}
+
+#controls{
+position:absolute;
+bottom:20px;
+width:100%;
+display:flex;
+justify-content:space-between;
+padding:20px;
+z-index:100;
+}
+
+.ctrlBtn{
+width:80px;
+height:80px;
+border:none;
+border-radius:50%;
+font-size:30px;
+background:rgba(255,255,255,0.3);
+color:white;
+}
+
+#nitroBtn{
+position:absolute;
+right:20px;
+top:150px;
+width:90px;
+height:90px;
+border-radius:50%;
+background:orange;
+border:none;
+font-size:18px;
+font-weight:bold;
+z-index:100;
+}
+
+#pauseBtn{
+position:absolute;
+right:20px;
+top:20px;
+padding:10px;
+font-size:18px;
+z-index:100;
+}
+
+#gameOver{
+display:none;
+position:absolute;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+background:black;
+padding:20px;
+border-radius:15px;
+color:white;
+text-align:center;
+z-index:500;
+}
+</style>
+</head>
+
+<body>
+
+<div id="game">
+
+<div id="road">
+<div class="lane" id="lane1"></div>
+<div class="lane" id="lane2"></div>
+</div>
+
+<div id="player"></div>
+
+<div id="hud">
+<div>Score: <span id="score">0</span></div>
+<div>Coins: <span id="coins">0</span></div>
+<div>Distance: <span id="distance">0</span> m</div>
+<div>Level: <span id="level">1</span></div>
+<div>High Score: <span id="highScore">0</span></div>
+
+<div id="fuelBar">
+<div id="fuel"></div>
+</div>
+</div>
+
+<button id="pauseBtn">⏸</button>
+<button id="nitroBtn">NITRO</button>
+
+<div id="controls">
+<button class="ctrlBtn" id="leftBtn">⬅</button>
+<button class="ctrlBtn" id="rightBtn">➡</button>
+</div>
+
+<div id="gameOver">
+<h1>GAME OVER</h1>
+<p>Your Score: <span id="finalScore"></span></p>
+<button onclick="location.reload()">Restart</button>
+</div>
+
+</div>
+
+<script>
+let player=document.getElementById("player");
+let score=0;
+let coins=0;
+let distance=0;
+let level=1;
+
+let highScore=
+localStorage.getItem("hlpHighScore") || 0;
+
+document.getElementById("highScore").innerText=
+highScore;
+
+let lane=1;
+
+const lanePos=[
+window.innerWidth*0.18,
+window.innerWidth*0.43,
+window.innerWidth*0.68
+];
+
+player.style.left=lanePos[lane]+"px";
+
+document.getElementById("leftBtn").onclick=()=>{
+if(lane>0){
+lane--;
+player.style.left=lanePos[lane]+"px";
+}
+};
+
+document.getElementById("rightBtn").onclick=()=>{
+if(lane<2){
+lane++;
+player.style.left=lanePos[lane]+"px";
+}
+};
+</script>
+
+</body>
+</html>// ===== TRAFFIC + COINS + SCORE + FUEL =====
+
+let enemies=[];
+let gameCoins=[];
+
+let fuelValue=100;
+let gameSpeed=5;
+
+function createEnemy(){
+
+let enemy=document.createElement("div");
+enemy.classList.add("enemy");
+
+let laneIndex=Math.floor(Math.random()*3);
+
+enemy.style.left=lanePos[laneIndex]+"px";
+enemy.style.top="-100px";
+
+document.getElementById("game").appendChild(enemy);
+
+enemies.push(enemy);
+}
+
+function createCoin(){
+
+let coin=document.createElement("div");
+coin.classList.add("coin");
+
+let laneIndex=Math.floor(Math.random()*3);
+
+coin.style.left=(lanePos[laneIndex]+12)+"px";
+coin.style.top="-50px";
+
+document.getElementById("game").appendChild(coin);
+
+gameCoins.push(coin);
+}
+
+setInterval(createEnemy,1500);
+setInterval(createCoin,2500);
+
+function checkCollision(a,b){
+
+let r1=a.getBoundingClientRect();
+let r2=b.getBoundingClientRect();
+
+return !(
+r1.top>r2.bottom ||
+r1.bottom<r2.top ||
+r1.left>r2.right ||
+r1.right<r2.left
+);
+}
+
+function updateGame(){
+
+score+=1;
+distance+=1;
+
+document.getElementById("score").innerText=score;
+document.getElementById("distance").innerText=distance;
+
+fuelValue-=0.02;
+
+if(fuelValue<0){
+fuelValue=0;
+}
+
+document.getElementById("fuel").style.width=
+fuelValue+"%";
+
+if(distance>500){
+level=2;
+}
+
+if(distance>1500){
+level=3;
+gameSpeed=7;
+}
+
+if(distance>3000){
+level=4;
+gameSpeed=9;
+}
+
+document.getElementById("level").innerText=level;
+
+for(let i=0;i<enemies.length;i++){
+
+let enemy=enemies[i];
+
+enemy.style.top=
+(enemy.offsetTop+gameSpeed)+"px";
+
+if(checkCollision(player,enemy)){
+gameOver();
+}
+
+if(enemy.offsetTop>window.innerHeight){
+
+enemy.remove();
+enemies.splice(i,1);
+}
+}
+
+for(let i=0;i<gameCoins.length;i++){
+
+let coin=gameCoins[i];
+
+coin.style.top=
+(coin.offsetTop+gameSpeed)+"px";
+
+if(checkCollision(player,coin)){
+
+coins++;
+
+document.getElementById("coins").innerText=
+coins;
+
+coin.remove();
+gameCoins.splice(i,1);
+}
+
+if(coin.offsetTop>window.innerHeight){
+
+coin.remove();
+gameCoins.splice(i,1);
+}
+}
+
+requestAnimationFrame(updateGame);
+}
+
+updateGame();// ===== NITRO + PAUSE + GAME OVER + HIGH SCORE =====
+
+let paused=false;
+let nitroActive=false;
+
+function gameOver(){
+
+paused=true;
+
+if(score > highScore){
+
+highScore=score;
+
+localStorage.setItem(
+"hlpHighScore",
+highScore
+);
+}
+
+document.getElementById("highScore").innerText=
+highScore;
+
+document.getElementById("finalScore").innerText=
+score;
+
+document.getElementById("gameOver").style.display=
+"block";
+}
+
+document.getElementById("pauseBtn").onclick=()=>{
+
+paused=!paused;
+
+if(paused){
+
+document.getElementById("pauseBtn").innerText=
+"▶";
+
+}else{
+
+document.getElementById("pauseBtn").innerText=
+"⏸";
+
+updateGame();
+}
+};
+
+document.getElementById("nitroBtn").onclick=()=>{
+
+if(nitroActive) return;
+
+nitroActive=true;
+
+gameSpeed+=5;
+
+document.getElementById("nitroBtn").innerText=
+"BOOST";
+
+setTimeout(()=>{
+
+gameSpeed-=5;
+
+nitroActive=false;
+
+document.getElementById("nitroBtn").innerText=
+"NITRO";
+
+},3000);
+};
+
+function fuelCheck(){
+
+if(fuelValue<=0){
+
+gameOver();
+}
+}
+
+setInterval(fuelCheck,500);
+
+const oldUpdateGame=updateGame;
+
+updateGame=function(){
+
+if(paused) return;
+
+oldUpdateGame();
+};
