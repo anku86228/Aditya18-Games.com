@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>GTA Final 480KM</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;overflow:hidden;}
+html,body{width:100%;height:100%;background:#000;touch-action:none;}
+#game{width:100%;height:100%;display:block;position:absolute;top:0;left:0;}
+#ui{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;}
+#money{position:absolute;top:env(safe-area-inset-top,20px);left:20px;color:#00ff00;font-size:24px;font-weight:bold;text-shadow:2px 2px 4px #000;}
+#wanted{position:absolute;top:env(safe-area-inset-top,20px);right:20px;color:#ff0000;font-size:30px;text-shadow:2px 2px 4px #000;}
+#speed{position:absolute;top:calc(env(safe-area-inset-top,20px) + 40px);right:20px;color:#00ff00;font-size:28px;background:rgba(0,0,0,0.8);padding:12px 25px;border-radius:10px;border:2px solid #00ff00;}
+#vehicle{position:absolute;top:calc(env(safe-area-inset-top,20px) + 90px);right:20px;color:#00ffff;font-size:16px;background:rgba(0,0,0,0.7);padding:8px 15px;border-radius:10px;}
+#controls{position:absolute;bottom:calc(env(safe-area-inset-bottom,20px));width:100%;display:flex;justify-content:space-between;padding:0 30px;pointer-events:auto;}
+.btn{width:80px;height:80px;background:rgba(255,255,255,0.3);border:3px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;color:#fff;font-weight:bold;backdrop-filter:blur(5px);user-select:none;}
+.btn:active{background:rgba(255,255,255,0.6);transform:scale(0.9);}
+#accel{position:absolute;right:30px;bottom:calc(env(safe-area-inset-bottom,120px));width:90px;height:90px;background:rgba(0,255,0,0.5);}
+#brake{position:absolute;right:30px;bottom:calc(env(safe-area-inset-bottom,20px));width:90px;height:90px;background:rgba(255,0,0,0.5);}
+#shoot{position:absolute;left:30px;bottom:calc(env(safe-area-inset-bottom,120px));width:90px;height:90px;background:rgba(255,165,0,0.5);}
+#enter{position:absolute;left:30px;bottom:calc(env(safe-area-inset-bottom,20px));width:90px;height:90px;background:rgba(0,0,255,0.5);font-size:14px;}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="ui">
+    <div id="money">$2,000,000</div><div id="wanted"></div><div id="speed">120 KM/H</div><div id="vehicle">🚶 Walking</div>
+    <div id="controls"><div class="btn" id="left">←</div><div class="btn" id="right">→</div></div>
+    <div class="btn" id="accel">↑</div><div class="btn" id="brake">↓</div><div class="btn" id="shoot">🔫</div><div class="btn" id="enter">ENTER</div>
+</div>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+const canvas=document.getElementById('game');
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x87CEEB);scene.fog=new THREE.Fog(0x87CEEB,100,300);
+const camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,1000);
+const renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true});renderer.setSize(window.innerWidth,window.innerHeight);renderer.shadowMap.enabled=true;
+const light=new THREE.DirectionalLight(0xffffff,1);light.position.set(50,100,50);light.castShadow=true;scene.add(light);scene.add(new THREE.AmbientLight(0x404040));
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(3000,3000),new THREE.MeshLambertMaterial({color:0x228B22}));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+for(let i=-800;i<=800;i+=100){const r1=new THREE.Mesh(new THREE.PlaneGeometry(3000,20),new THREE.MeshLambertMaterial({color:0x333}));r1.rotation.x=-Math.PI/2;r1.position.set(0,0.1,i);scene.add(r1);const r2=new THREE.Mesh(new THREE.PlaneGeometry(20,3000),new THREE.MeshLambertMaterial({color:0x333}));r2.rotation.x=-Math.PI/2;r2.position.set(i,0.1,0);scene.add(r2);}
+for(let i=0;i<50;i++){for(let j=0;j<50;j++){if(Math.random()>0.85){const h=Math.random()*50+20;const b=new THREE.Mesh(new THREE.BoxGeometry(15,h,15),new THREE.MeshLambertMaterial({color:0x888}));b.position.set(i*60-1500,h/2,j*60-1500);b.castShadow=true;scene.add(b);}}}
+function makeBugatti(color,speed,name){const car=new THREE.Group();const body=new THREE.Mesh(new THREE.CylinderGeometry(2,2,9,8,1,false,0,Math.PI),new THREE.MeshPhongMaterial({color:color,shininess:100}));body.rotation.z=Math.PI/2;body.rotation.y=Math.PI/2;body.position.y=1.8;car.add(body);const front=new THREE.Mesh(new THREE.BoxGeometry(4,1,2),new THREE.MeshPhongMaterial({color:0x222}));front.position.set(0,1,3.5);car.add(front);const grill=new THREE.Mesh(new THREE.BoxGeometry(3,0.8,0.2),new THREE.MeshBasicMaterial({color:0x111}));grill.position.set(0,1,4.4);car.add(grill);const wheelGeo=new THREE.CylinderGeometry(0.9,0.9,0.6,20);const wheelMat=new THREE.MeshPhongMaterial({color:0x111});[[1.8,0.9,3],[-1.8,0.9,3],[1.8,0.9,-3],[-1.8,0.9,-3]].forEach(p=>{const w=new THREE.Mesh(wheelGeo,wheelMat);w.rotation.z=Math.PI/2;w.position.set(...p);w.castShadow=true;car.add(w);});car.userData={type:'car',color:color,speed:speed,name:name,taken:false};return car;}
+function makeRevuelto(color,speed,name){const car=new THREE.Group();const body=new THREE.Mesh(new THREE.BoxGeometry(4.2,1.2,8.5),new THREE.MeshPhongMaterial({color:color,shininess:100}));body.position.y=1.4;car.add(body);const spoiler=new THREE.Mesh(new THREE.BoxGeometry(4,0.3,1),new THREE.MeshBasicMaterial({color:0x222}));spoiler.position.set(0,2,-4);car.add(spoiler);const exhaust=new THREE.Mesh(new THREE.TorusGeometry(0.8,0.2,16,32),new THREE.MeshBasicMaterial({color:0x333}));exhaust.rotation.x=Math.PI/2;exhaust.position.set(0,0.8,-4.2);car.add(exhaust);const wheelGeo=new THREE.CylinderGeometry(0.9,0.9,0.6,20);const wheelMat=new THREE.MeshPhongMaterial({color:0x111});[[1.9,0.9,3],[-1.9,0.9,3],[1.9,0.9,-3],[-1.9,0.9,-3]].forEach(p=>{const w=new THREE.Mesh(wheelGeo,wheelMat);w.rotation.z=Math.PI/2;w.position.set(...p);w.castShadow=true;car.add(w);});car.userData={type:'car',color:color,speed:speed,name:name,taken:false};return car;}
+function makeBike(color,speed,name){const bike=new THREE.Group();const body=new THREE.Mesh(new THREE.CylinderGeometry(0.8,0.8,3,12),new THREE.MeshPhongMaterial({color:color}));body.rotation.z=Math.PI/2;body.position.y=1.2;bike.add(body);const wheelGeo=new THREE.CylinderGeometry(0.7,0.7,0.3,20);const wheelMat=new THREE.MeshPhongMaterial({color:0x111});const w1=new THREE.Mesh(wheelGeo,wheelMat);w1.rotation.z=Math.PI/2;w1.position.set(0,0.7,1.5);bike.add(w1);const w2=new THREE.Mesh(wheelGeo,wheelMat);w2.rotation.z=Math.PI/2;w2.position.set(0,0.7,-1.5);bike.add(w2);bike.userData={type:'bike',color:color,speed:speed,name:name,taken:false};return bike;}
+const vehicles=[makeBugatti(0x4FC3F7,24,'Bugatti Divo'),makeRevuelto(0xFFC107,22,'Lambo Revuelto'),makeBike(0x00E676,26,'Ninja H2R')];
+vehicles.forEach(v=>{v.position.set(Math.random()*600-300,v.position.y,Math.random()*600-300);v.rotation.y=Math.random()*Math.PI;scene.add(v);});
+const player=new THREE.Mesh(new THREE.SphereGeometry(1.5),new THREE.MeshLambertMaterial({color:0xffaa00}));player.position.set(0,1.5,0);scene.add(player);
+let speed=6,angle=0,keys={},money=2000000,wanted=0,inVehicle=false,currentVehicle=null,bullets=[];camera.position.set(0,25,35);
+const keyDown=e=>keys[e.key]=true;const keyUp=e=>keys[e.key]=false;document.addEventListener('keydown',keyDown);document.addEventListener('keyup',keyUp);
+document.getElementById('left').ontouchstart=()=>keys['ArrowLeft']=true;document.getElementById('left').ontouchend=()=>keys['ArrowLeft']=false;
+document.getElementById('right').ontouchstart=()=>keys['ArrowRight']=true;document.getElementById('right').ontouchend=()=>keys['ArrowRight']=false;
+document.getElementById('accel').ontouchstart=()=>keys['ArrowUp']=true;document.getElementById('accel').ontouchend=()=>keys['ArrowUp']=false;
+document.getElementById('brake').ontouchstart=()=>keys['ArrowDown']=true;document.getElementById('brake').ontouchend=()=>keys['ArrowDown']=false;
+document.getElementById('shoot').ontouchstart=shoot;document.getElementById('enter').ontouchstart=enterExit;
+function enterExit(){if(!inVehicle){for(let v of vehicles){if(v.position.distanceTo(player.position)<15&&!v.userData.taken){inVehicle=true;currentVehicle=v;v.userData.taken=true;speed=6;document.getElementById('vehicle').textContent=(v.userData.type=='car'?'🏎️':'🏍️')+' '+v.userData.name;document.getElementById('enter').textContent='EXIT';player.visible=false;break;}}}else{inVehicle=false;currentVehicle.userData.taken=false;player.position.copy(currentVehicle.position);player.position.x+=10;player.visible=true;currentVehicle=null;speed=6;document.getElementById('vehicle').textContent='🚶 Walking';document.getElementById('enter').textContent='ENTER';}}
+function shoot(){if(!inVehicle||wanted>=5)return;wanted++;const b=new THREE.Mesh(new THREE.SphereGeometry(0.5),new THREE.MeshBasicMaterial({color:0xffff00}));b.position.copy(inVehicle?currentVehicle.position:player.position);b.userData={vx:Math.sin(angle)*12,vz:-Math.cos(angle)*12,life:50};scene.add(b);bullets.push(b);}
+function update(){const t=inVehicle?currentVehicle:player;const max=inVehicle?currentVehicle.userData.speed:8;const min=6;if(keys['ArrowUp'])speed=Math.min(speed+0.5,max);else if(keys['ArrowDown'])speed=Math.max(speed-0.5,min);else speed=Math.max(speed*0.98,min);if(keys['ArrowLeft'])angle-=0.08*speed/max;if(keys['ArrowRight'])angle+=0.08*speed/max;t.position.x+=Math.sin(angle)*speed;t.position.z-=Math.cos(angle)*speed;t.rotation.y=angle;if(inVehicle)player.position.copy(t.position);camera.position.x=t.position.x;camera.position.z=t.position.z+35;camera.lookAt(t.position);for(let i=bullets.length-1;i>=0;i--){const b=bullets[i];b.position.x+=b.userData.vx;b.position.z+=b.userData.vz;b.userData.life--;if(b.userData.life<=0){scene.remove(b);bullets.splice(i,1);}}const kmph=Math.floor(speed*20);document.getElementById('money').textContent='$'+money.toLocaleString();document.getElementById('wanted').textContent='★'.repeat(wanted);document.getElementById('speed').textContent=kmph+' KM/H';}
+function animate(){requestAnimationFrame(animate);update();renderer.render(scene,camera);}animate();
+window.addEventListener('resize',()=>{camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);});
+</script>
+</body>
+</html>
