@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>Bike Racer V2</title>
+<style>
+*{margin:0;padding:0;overflow:hidden;font-family:Arial}
+canvas{display:block;background:#87CEEB}
+#ui{position:absolute;top:0;left:0;width:100%;color:#fff;text-shadow:2px 2px #000;pointer-events:none}
+#score{position:absolute;top:10px;left:10px;font-size:22px;font-weight:bold}
+#speed{position:absolute;top:10px;right:10px;font-size:22px;font-weight:bold;color:#0f0}
+#msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:36px;display:none}
+#gas{position:absolute;bottom:20px;right:20px;width:80px;height:80px;background:rgba(0,255,0,.8);border-radius:50%;pointer-events:auto;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:18px;border:3px solid #fff}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <div id="score">Score: 0</div>
+  <div id="speed">0 KM/H</div>
+  <div id="msg">CRASH! Tap to Restart</div>
+</div>
+<div id="gas">GAS</div>
+
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script>
+const T=THREE;
+
+// 1. Setup
+const s=new T.Scene();
+const cam=new T.PerspectiveCamera(75,innerWidth/innerHeight,.1,1000);cam.position.set(0,5,10);
+const r=new T.WebGLRenderer({canvas:document.getElementById('c'),antialias:true});r.setSize(innerWidth,innerHeight);
+s.add(new T.AmbientLight(0xffffff,1.5));
+
+// 2. Road
+const road=new T.Mesh(new T.PlaneGeometry(20,2000),new T.MeshLambertMaterial({color:0x333}));road.rotation.x=-Math.PI/2;road.position.z=-1000;s.add(road);
+for(let i=-1000;i<0;i+=20){const line=new T.Mesh(new T.BoxGeometry(1,0.1,5),new T.MeshLambertMaterial({color:0xfff}));line.position.set(0,0.1,i);s.add(line);}
+
+// 3. Bike
+const bike=new T.Group();
+bike.add(new T.Mesh(new T.BoxGeometry(1,1,2),new T.MeshPhongMaterial({color:0xff0000})));
+bike.position.set(0,.5,0);s.add(bike);
+
+// 4. Ram
+const ram=[];function addRam(){const r=new T.Mesh(new T.BoxGeometry(2,2,2),new T.MeshLambertMaterial({color:0x8B4513}));r.position.set(Math.random()*12-6,1,-Math.random()*800-50);s.add(r);ram.push(r)}
+for(let i=0;i<20;i++)addRam();
+
+// 5. Game Logic
+let x=0,sp=0,score=0,alive=1;
+document.getElementById('gas').ontouchstart=e=>{e.preventDefault();sp=0.3};
+document.getElementById('gas').ontouchend=e=>{e.preventDefault();sp=0};
+window.ondeviceorientation=e=>{if(alive)x=e.gamma/30};
+
+document.getElementById('msg').ontouchstart=()=>{alive=1;score=0;bike.position.set(0,.5,0);document.getElementById('msg').style.display='none';ram.forEach(r=>r.position.z=-Math.random()*800-50)};
+
+// 6. Loop
+function A(){
+  requestAnimationFrame(A);if(!alive){r.render(s,cam);return;}
+  bike.position.x+=x;bike.position.x=Math.max(-9,Math.min(9,bike.position.x));
+  bike.position.z-=sp*10;cam.position.z=bike.position.z+10;
+  ram.forEach(r=>{
+    r.position.z+=sp*10;
+    if(r.position.z>10){r.position.z=-Math.random()*800-50;r.position.x=Math.random()*12-6;score+=10}
+    if(bike.position.distanceTo(r)<1.5){alive=0;document.getElementById('msg').style.display='block'}
+  });
+  document.getElementById('score').innerText='Score: '+score;
+  document.getElementById('speed').innerText=Math.floor(sp*100)+' KM/H';
+  r.render(s,cam);
+}
+A();
+</script>
+</body>
+  </html>
