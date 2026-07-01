@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>Bike Racer V4 Fixed</title>
+<style>
+    * { margin:0; padding:0; overflow:hidden; font-family:'Arial Black',Arial }
+    canvas { display:block; background:linear-gradient(#87CEEB, #1E90FF) }
+    #ui { position:absolute; top:0; left:0; width:100%; color:#fff; text-shadow:3px 3px #000; pointer-events:none }
+    #score { position:absolute; top:15px; left:15px; font-size:26px; background:rgba(0,0,0,.5); padding:5px 15px; border-radius:10px }
+    #speed { position:absolute; top:15px; right:15px; font-size:26px; color:#0f0; background:rgba(0,0,0,.5); padding:5px 15px; border-radius:10px }
+    #msg { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:48px; display:none; background:rgba(255,0,0,.9); padding:20px; border-radius:20px; border:3px solid #fff; pointer-events:auto; cursor:pointer; }
+    #gas { position:absolute; bottom:30px; right:30px; width:120px; height:120px; background:radial-gradient(circle, #0f0 0%, #0a0 100%); border-radius:50%; pointer-events:auto; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:24px; border:4px solid #fff; box-shadow:0 0 25px #0f0 }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+    <div id="score">Score: 0</div>
+    <div id="speed">0 KM/H</div>
+    <div id="msg">CRASH! Tap to Restart</div>
+</div>
+<div id="gas">GAS</div>
+
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script>
+    const T = THREE;
+    const s = new T.Scene();
+    const cam = new T.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 1000);
+    const r = new T.WebGLRenderer({canvas: document.getElementById('c'), antialias: true});
+    r.setSize(innerWidth, innerHeight);
+    
+    // Lighting
+    s.add(new T.AmbientLight(0xffffff, 1.5));
+    const dl = new T.DirectionalLight(0xffffff, 1);
+    dl.position.set(5, 10, 7);
+    s.add(dl);
+
+    // Infinite Road and Lines (Sectioned)
+    const roadWidth = 30;
+    const roadLength = 200;
+    const roadGroup = new T.Group();
+    s.add(roadGroup);
+
+    const roadMaterials = [
+        new T.MeshLambertMaterial({color: 0x555555}),
+        new T.MeshLambertMaterial({color: 0x4a4a4a})
+    ];
+
+    const roadSegments = [];
+    // Create 3 road segments stacked end-to-end
+    for (let i = 0; i < 3; i++) {
+        const road = new T.Mesh(new T.PlaneGeometry(roadWidth, roadLength), roadMaterials[i % 2]);
+        road.rotation.x = -Math.PI / 2;
+        road.position.set(0, 0, -i * roadLength);
+        roadGroup.add(road);
+        roadSegments.push(road);
+    }
+
+    const lines = [];
+    for (let z = 0; z > -600; z -= 15) {
+        const line = new T.Mesh(new T.BoxGeometry(2, 0.1, 8), new T.MeshLambertMaterial({color: 0xffff00}));
+        line.position.set(0, 0.1, z);
+        s.add(line);
+        lines.push(line);
+    }
+
+    // Bike 
+    const bike = new T.Group();
+    const body = new T.Mesh(new T.BoxGeometry(1.5, 1, 3), new T.MeshPhongMaterial({color: 0xff0000}));
+    body.position.y = 0.5;
+    bike.add(body);
+
+    const w1 = new T.Mesh(new T.TorusGeometry(0.7, 0.2, 16, 16), new T.MeshPhongMaterial({color: 0x222222}));
+    w1.rotation.x = Math.PI/2;
+    w1.position.set(0, 0, -1.2);
+    bike.add(w1);
+
+    const w2 = new T.Mesh(new T.TorusGeometry(0.7, 0.2, 16, 16), new T.MeshPhongMaterial({color: 0x222222}));
+    w2.rotation.x = Math.PI/2;
+    w2.position.set(0, 0, 1.2);
+    bike.add(w2);
+
+    bike.position.set(0, 1.5, 0);
+    s.add(bike);
+
+    // Obstacles
+    const ram = [];
+    function addRam() {
+        const mesh = new T.Mesh(new T.IcosahedronGeometry(1.5), new T.MeshLambertMaterial({color: 0x8B4513}));
+        mesh.position.set(Math.random() * 20 - 10, 1.5, bike.position.z - Math.random() * 300 - 100);
+        s.add(mesh);
+        ram.push(mesh);
+    }
+    for (let i = 0; i < 20; i++) addRam();
+
+    // Game Logic Variables
+    let x = 0, sp = 0, score = 0, alive = 1, bikeZ = 0;
+
+    // Controls
+    document.getElementById('gas').ontouchstart = e => { e.preventDefault(); sp = 0.5; };
+    document.getElementById('gas').ontouchend = e => { e.preventDefault(); sp = 0; };
+    
+    // Keyboard fallback for testing on PC
+    window.onkeydown = e => { if(e.key === 'ArrowUp') sp = 0.5; if(e.key === 'ArrowLeft') x = 0.3; if(e.key === 'ArrowRight') x = -0.3; };
+    window.onkeyup = e => { if(e.key === 'ArrowUp') sp = 0; if(e.key === 'ArrowLeft' || e.key === 'ArrowRight') x = 0; };
+
+    window.ondeviceorientation = e => { if (alive) x = e.gamma / 35; };
+
+    document.getElementById('msg').ontouchstart = () => {
+        alive = 1; score = 0; sp = 0; bikeZ = 0;
+        bike.position.set(0, 1.5, 0);
+        document.getElementById('msg').style.display = 'none';
+        ram.forEach((r, index) => {
+            r.position.set(Math.random() * 20 - 10, 1.5, -Math.random() * 300 - 100);
+        });
+    };
+
+    // Main Loop
+    function A() {
+        requestAnimationFrame(A);
+        
+        if (!alive) {
+            r.render(s, cam);
+            return;
+        }
+
+        // Update Bike Position
+        bikeZ -= sp * 15; 
+        bike.position.z = bikeZ;
+        bike.position.x += x;
+        bike.position.x = Math.max(-14, Math.min(14, bike.position.x));
+        bike.rotation.z = -x * 0.4;
+        
+        // Spin Wheels
+        w1.rotation.z += sp * 0.5;
+        w2.rotation.z += sp * 0.5;
+
+        // Smooth Camera - Fixed Distance Behind Bike
+        const targetCamZ = bike.position.z + 12;
+        cam.position.z += (targetCamZ - cam.position.z) * 0.1;
+        cam.position.x += (bike.position.x - cam.position.x) * 0.1;
+        cam.position.y = bike.position.y + 6;
+        cam.lookAt(bike.position.x, bike.position.y, bike.position.z - 5);
+
+        // Infinite Road Repositioning
+        roadSegments.forEach((seg, index) => {
+            const bikeIndex = Math.floor(Math.abs(bike.position.z) / roadLength);
+            // Segments wrap around to be in front of the bike continuously
+            seg.position.z = -(bikeIndex + (index - 1)) * roadLength;
+        });
+
+        // Loop Yellow Lines
+        lines.forEach(l => {
+            if (l.position.z > bike.position.z + 20) {
+                l.position.z -= 600;
+            }
+        });
+
+        // Obstacle Collisions and Reset
+        ram.forEach(item => {
+            item.rotation.x += 0.03;
+            item.rotation.y += 0.03;
+
+            if (item.position.z > bike.position.z + 20) {
+                item.position.z = bike.position.z - Math.random() * 300 - 100;
+                item.position.x = Math.random() * 20 - 10;
+                score += 10;
+            }
+
+            if (bike.position.distanceTo(item.position) < 2.5) {
+                alive = 0;
+                document.getElementById('msg').style.display = 'block';
+            }
+        });
+
+        // UI Updates
+        document.getElementById('score').innerText = 'Score: ' + score;
+        document.getElementById('speed').innerText = Math.floor(sp * 150) + ' KM/H';
+
+        r.render(s, cam);
+    }
+    A();
+</script>
+</body>
+</html>
