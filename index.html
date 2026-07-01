@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>Bike Racer V3.1</title>
+<style>
+*{margin:0;padding:0;overflow:hidden;font-family:'Arial Black',Arial}
+canvas{display:block;background:linear-gradient(#87CEEB, #E0F6FF)}
+#ui{position:absolute;top:0;left:0;width:100%;color:#fff;text-shadow:3px 3px #000;pointer-events:none}
+#score{position:absolute;top:15px;left:15px;font-size:26px;background:rgba(0,0,0,.4);padding:5px 15px;border-radius:10px}
+#speed{position:absolute;top:15px;right:15px;font-size:26px;color:#0f0;background:rgba(0,0,0,.4);padding:5px 15px;border-radius:10px}
+#msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:48px;display:none;background:rgba(255,0,0,.8);padding:20px;border-radius:20px;border:3px solid #fff}
+#gas{position:absolute;bottom:30px;right:30px;width:100px;height:100px;background:radial-gradient(circle, #0f0 0%, #0a0 100%);border-radius:50%;pointer-events:auto;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:22px;border:4px solid #fff;box-shadow:0 0 20px #0f0}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui"><div id="score">Score: 0</div><div id="speed">0 KM/H</div><div id="msg">CRASH! Tap to Restart</div></div>
+<div id="gas">GAS</div>
+
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script>
+const T=THREE;
+const s=new T.Scene();
+const cam=new T.PerspectiveCamera(75,innerWidth/innerHeight,.1,1000);cam.position.set(0,8,15);
+const r=new T.WebGLRenderer({canvas:document.getElementById('c'),antialias:true});r.setSize(innerWidth,innerHeight);
+s.add(new T.AmbientLight(0xffffff,1.2));const dl=new T.DirectionalLight(0xffffff,1);dl.position.set(5,10,7);s.add(dl);
+
+// 1. Infinite Road Fix
+const road=new T.Mesh(new T.PlaneGeometry(24,200),new T.MeshLambertMaterial({color:0x444}));road.rotation.x=-Math.PI/2;s.add(road);
+const lines=[];for(let i=-100;i<100;i+=20){const line=new T.Mesh(new T.BoxGeometry(1.5,0.1,10),new T.MeshLambertMaterial({color:0xfff}));line.position.set(0,0.1,i);s.add(line);lines.push(line);}
+
+// Bike
+const bike=new T.Group();
+bike.add(new T.Mesh(new T.CylinderGeometry(0.4,0.4,1.8,16,{openEnded:true}),new T.MeshPhongMaterial({color:0xff0000})));
+bike.add(new T.Mesh(new T.TorusGeometry(0.5,0.1,16,16),new T.MeshPhongMaterial({color:0x333}))); bike.children[1].rotation.x=Math.PI/2; bike.children[1].position.z=-0.8;
+bike.add(new T.Mesh(new T.TorusGeometry(0.5,0.1,16,16),new T.MeshPhongMaterial({color:0x333}))); bike.children[2].rotation.x=Math.PI/2; bike.children[2].position.z=0.8;
+bike.position.set(0,1,0);s.add(bike);
+
+// Ram
+const ram=[];function addRam(){const r=new T.Mesh(new T.DodecahedronGeometry(1.2),new T.MeshLambertMaterial({color:0x8B4513}));r.position.set(Math.random()*16-8,1.2,-Math.random()*300-50);s.add(r);ram.push(r)}
+for(let i=0;i<25;i++)addRam();
+
+// Game Logic
+let x=0,sp=0,score=0,alive=1;
+document.getElementById('gas').ontouchstart=e=>{e.preventDefault();sp=0.4};
+document.getElementById('gas').ontouchend=e=>{e.preventDefault();sp=0};
+window.ondeviceorientation=e=>{if(alive)x=e.gamma/40};
+document.getElementById('msg').ontouchstart=()=>{alive=1;score=0;bike.position.set(0,1,0);document.getElementById('msg').style.display='none';ram.forEach(r=>r.position.z=-Math.random()*300-50)};
+
+// 2. Loop with Infinite Road
+function A(){
+  requestAnimationFrame(A);if(!alive){r.render(s,cam);return;}
+
+  bike.position.x+=x;bike.position.x=Math.max(-11,Math.min(11,bike.position.x));bike.rotation.z=-x*0.5;
+  bike.position.z-=sp*12;cam.position.z=bike.position.z+15;cam.lookAt(bike.position);
+
+  // Sadak ko Bike ke sath khinchna
+  road.position.z = bike.position.z - 100;
+  lines.forEach(l=>{l.position.z = bike.position.z + (l.position.z - bike.position.z) % 200; if(l.position.z - bike.position.z > 100) l.position.z -= 200;});
+
+  ram.forEach(r=>{
+    r.position.z+=sp*12;r.rotation.x+=0.02;r.rotation.y+=0.02;
+    if(r.position.z > bike.position.z + 50){r.position.z = bike.position.z - Math.random()*300-50;r.position.x=Math.random()*16-8;score+=10} // Ram ko peeche bhejna
+    if(bike.position.distanceTo(r)<2){alive=0;document.getElementById('msg').style.display='block'}
+  });
+  document.getElementById('score').innerText='Score: '+score;
+  document.getElementById('speed').innerText=Math.floor(sp*120)+' KM/H';
+  r.render(s,cam);
+}
+A();
+</script>
+</body>
+  </html>
